@@ -27,7 +27,7 @@ The blueprint approach is the easiest way to get started and requires minimal se
 2. Click **Import Blueprint**
 3. Paste the following URL:
    ```
-   https://raw.githubusercontent.com/f0rky/home-assistant-blueprints/main/uber-eats-tracker/uber-eats-tracker.yaml
+   https://raw.githubusercontent.com/f0rky/home-assistant-blueprints/master/uber-eats-tracker/uber-eats-tracker-direct.yaml
    ```
 4. Click **Preview** then **Import**
 

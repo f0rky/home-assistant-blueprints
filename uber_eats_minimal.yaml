@@ -1,0 +1,150 @@
+blueprint:
+  name: Uber Eats Order Tracker
+  description: Track Uber Eats orders and get notifications
+  domain: automation
+  input:
+    tracking_link:
+      name: Uber Eats Tracking Link
+      selector:
+        entity:
+          domain: input_text
+    tv_media_player:
+      name: TV Media Player
+      selector:
+        entity:
+          domain: media_player
+    notification_lights:
+      name: Notification Lights
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    porch_lights:
+      name: Porch Lights
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    mobile_notify_device:
+      name: Mobile Device
+      selector:
+        device:
+          integration: mobile_app
+      default: ""
+      required: false
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input tracking_link
+  - platform: time_pattern
+    minutes: "/2"
+
+condition:
+  - condition: template
+    value_template: "{{ states(trigger.entity_id) != '' and 'uber.com' in states(trigger.entity_id) }}"
+
+variables:
+  tracking_url: "{{ states(trigger.entity_id) }}"
+
+action:
+  - service: persistent_notification.create
+    data:
+      title: "Uber Eats Tracking"
+      message: "Tracking your order"
+  
+  - service: rest_command.check_uber_eats_status
+    data:
+      url: "{{ tracking_url }}"
+  
+  - delay:
+      seconds: 10
+  
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ 'preparing' in states('sensor.uber_eats_status') }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: "Uber Eats Update"
+              message: "Order is being prepared! ETA: {{ state_attr('sensor.uber_eats_status', 'eta') }}"
+          - service: notify.mobile_app
+            data:
+              message: "Order is being prepared! ETA: {{ state_attr('sensor.uber_eats_status', 'eta') }}"
+            target:
+              device_id: !input mobile_notify_device
+      
+      - conditions:
+          - condition: template
+            value_template: "{{ 'on its way' in states('sensor.uber_eats_status') }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: "Uber Eats Update"
+              message: "Food on the way! Driver: {{ state_attr('sensor.uber_eats_status', 'driver_name') }}"
+          - service: notify.mobile_app
+            data:
+              message: "Food on the way! Driver: {{ state_attr('sensor.uber_eats_status', 'driver_name') }}"
+            target:
+              device_id: !input mobile_notify_device
+      
+      - conditions:
+          - condition: template
+            value_template: "{{ 'nearby' in states('sensor.uber_eats_status') }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: !input notification_lights
+            data:
+              flash: short
+          - service: media_player.play_media
+            target:
+              entity_id: !input tv_media_player
+            data:
+              media_content_id: /local/ubereats-nearby.png
+              media_content_type: image/png
+          - service: notify.mobile_app
+            data:
+              message: "Order is nearby!"
+              title: "Food Approaching!"
+            target:
+              device_id: !input mobile_notify_device
+      
+      - conditions:
+          - condition: template
+            value_template: "{{ 'arrived' in states('sensor.uber_eats_status') }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: !input porch_lights
+            data:
+              brightness_pct: 100
+          - service: media_player.play_media
+            target:
+              entity_id: !input tv_media_player
+            data:
+              media_content_id: /local/ubereats-arrived.png
+              media_content_type: image/png
+          - service: notify.mobile_app
+            data:
+              message: "Order has arrived!"
+              title: "Food Arrived!"
+            target:
+              device_id: !input mobile_notify_device
+      
+      - conditions:
+          - condition: template
+            value_template: "{{ 'delivered' in states('sensor.uber_eats_status') }}"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: !input tracking_link
+            data:
+              value: ""
+          - service: persistent_notification.create
+            data:
+              title: "Order Complete"
+              message: "Enjoy your meal!"

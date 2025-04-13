@@ -1,0 +1,49 @@
+# Add this to your configuration.yaml
+rest_command:
+  check_uber_eats_status:
+    url: "{{ url }}"
+    method: GET
+    timeout: 30
+    content_type: "text/html"
+    verify_ssl: true
+    headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    sensor:
+      - name: "uber_eats_status"
+        value_template: >
+          {% set status_pattern = states('uber_eats_status')|default('unknown') %}
+          {% if 'Preparing your order' in value %}
+            preparing
+          {% elif 'On the way' in value %}
+            on its way
+          {% elif 'nearby' in value or 'minutes away' in value %}
+            nearby
+          {% elif 'Arrived' in value or 'at your door' in value %}
+            arrived
+          {% elif 'Delivered' in value or 'Enjoy' in value %}
+            delivered
+          {% else %}
+            {{ status_pattern }}
+          {% endif %}
+        attributes:
+          eta: >
+            {% set eta_match = value|regex_findall('(\d+)\s*min', ignorecase=true)|first|default('') %}
+            {% if eta_match %}
+              {{ eta_match }} minutes
+            {% else %}
+              unknown
+            {% endif %}
+          driver_name: >
+            {% set driver_match = value|regex_findall('([A-Z][a-z]+)\s+is\s+(delivering|bringing)', ignorecase=true)|first|default('')|first|default('') %}
+            {% if driver_match %}
+              {{ driver_match }}
+            {% else %}
+              Your driver
+            {% endif %}
+          distance: >
+            {% set distance_match = value|regex_findall('(\d+(?:\.\d+)?)\s*(miles|km|mi)', ignorecase=true)|first|default('')|first|default('') %}
+            {% if distance_match %}
+              {{ distance_match }} away
+            {% else %}
+              nearby
+            {% endif %}

@@ -1,0 +1,10 @@
+{
+  "domain": "uber_eats",
+  "name": "Uber Eats Order Tracker",
+  "documentation": "https://github.com/f0rky/home-assistant-blueprints/uber-eats-tracker",
+  "dependencies": [],
+  "codeowners": ["@f0rky"],
+  "requirements": [],
+  "version": "0.1.0",
+  "iot_class": "cloud_polling"
+}
